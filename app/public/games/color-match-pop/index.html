@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Color Match Pop</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at top, #fcd34d, #f97316 55%, #ec4899 100%);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #0f172a;
+        touch-action: manipulation;
+      }
+
+      #gameShell {
+        width: min(680px, 94vw);
+        background: #fff7ed;
+        border-radius: 28px;
+        padding: 24px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        display: grid;
+        gap: 18px;
+      }
+
+      header {
+        display: grid;
+        gap: 6px;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.6rem);
+      }
+
+      .subtitle {
+        font-size: 1rem;
+        color: #475569;
+      }
+
+      #hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+      }
+
+      .stat {
+        background: #fef3c7;
+        border-radius: 16px;
+        padding: 12px 14px;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      #target {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        height: 140px;
+        border-radius: 20px;
+        font-size: clamp(1.6rem, 3vw, 2rem);
+        font-weight: 700;
+        color: #0f172a;
+        border: 4px dashed rgba(15, 23, 42, 0.15);
+        transition: transform 0.2s ease;
+        text-align: center;
+      }
+
+      #target.pop {
+        transform: scale(1.04);
+      }
+
+      #grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(80px, 1fr));
+        gap: 14px;
+      }
+
+      .bubble {
+        height: 90px;
+        border-radius: 22px;
+        border: none;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 12px 18px rgba(15, 23, 42, 0.15);
+      }
+
+      .bubble:active {
+        transform: scale(0.97);
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        color: #f8fafc;
+      }
+
+      #overlay.hidden {
+        display: none;
+      }
+
+      .overlay-card {
+        background: #1e293b;
+        border-radius: 24px;
+        padding: 28px;
+        max-width: 360px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .overlay-card button {
+        border: none;
+        padding: 12px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #fbbf24;
+        color: #0f172a;
+      }
+
+      @media (min-width: 640px) {
+        #grid {
+          grid-template-columns: repeat(4, minmax(80px, 1fr));
+        }
+        .bubble {
+          height: 100px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameShell">
+      <header>
+        <h1>Color Match Pop</h1>
+        <p class="subtitle">Pop the bubble that matches the target color!</p>
+      </header>
+
+      <section id="hud">
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Combo: <span id="combo">0</span></div>
+        <div class="stat">Time: <span id="time">30</span>s</div>
+        <div class="stat">Best: <span id="best">0</span></div>
+      </section>
+
+      <div id="target">
+        <span>Find the</span>
+        <span id="targetName">Sunshine</span>
+        <span>bubble!</span>
+      </div>
+
+      <div id="grid"></div>
+    </div>
+
+    <div id="overlay">
+      <div class="overlay-card">
+        <h2>Color Match Pop</h2>
+        <p>Tap the bubble that matches the target color. Score more with streaks!</p>
+        <button id="startButton">Start Popping</button>
+      </div>
+    </div>
+
+    <script>
+      const colors = [
+        { name: "Sunshine", value: "#fbbf24" },
+        { name: "Sky", value: "#38bdf8" },
+        { name: "Grape", value: "#a855f7" },
+        { name: "Mint", value: "#34d399" },
+        { name: "Rose", value: "#fb7185" },
+        { name: "Lime", value: "#bef264" },
+      ];
+
+      const grid = document.getElementById("grid");
+      const target = document.getElementById("target");
+      const targetName = document.getElementById("targetName");
+      const scoreEl = document.getElementById("score");
+      const comboEl = document.getElementById("combo");
+      const timeEl = document.getElementById("time");
+      const bestEl = document.getElementById("best");
+      const overlay = document.getElementById("overlay");
+      const startButton = document.getElementById("startButton");
+
+      const state = {
+        score: 0,
+        combo: 0,
+        timeLeft: 30,
+        targetColor: null,
+        timerId: null,
+        best: Number(localStorage.getItem("colorMatchBest") || 0),
+      };
+
+      bestEl.textContent = state.best;
+
+      function shuffle(items) {
+        return items
+          .map((item) => ({ item, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ item }) => item);
+      }
+
+      function setTargetColor(color) {
+        state.targetColor = color;
+        target.style.background = color.value;
+        targetName.textContent = color.name;
+        target.classList.add("pop");
+        setTimeout(() => target.classList.remove("pop"), 180);
+      }
+
+      function buildGrid() {
+        grid.innerHTML = "";
+        const bubbleCount = window.innerWidth < 640 ? 6 : 8;
+        const shuffled = shuffle(colors).slice(0, bubbleCount - 1);
+        const targetColor = shuffle(colors)[0];
+        const choices = shuffle([...shuffled, targetColor]);
+
+        setTargetColor(targetColor);
+
+        choices.forEach((color) => {
+          const button = document.createElement("button");
+          button.className = "bubble";
+          button.textContent = color.name;
+          button.style.background = color.value;
+          button.addEventListener("click", () => handleSelection(color));
+          grid.appendChild(button);
+        });
+      }
+
+      function handleSelection(color) {
+        if (state.timeLeft <= 0) return;
+
+        if (color.name === state.targetColor.name) {
+          state.score += 10 + state.combo * 2;
+          state.combo += 1;
+        } else {
+          state.score = Math.max(0, state.score - 4);
+          state.combo = 0;
+        }
+
+        scoreEl.textContent = state.score;
+        comboEl.textContent = state.combo;
+        buildGrid();
+      }
+
+      function tick() {
+        state.timeLeft -= 1;
+        timeEl.textContent = state.timeLeft;
+
+        if (state.timeLeft <= 0) {
+          endGame();
+        }
+      }
+
+      function startGame() {
+        state.score = 0;
+        state.combo = 0;
+        state.timeLeft = 30;
+        scoreEl.textContent = state.score;
+        comboEl.textContent = state.combo;
+        timeEl.textContent = state.timeLeft;
+        overlay.classList.add("hidden");
+        buildGrid();
+
+        if (state.timerId) {
+          clearInterval(state.timerId);
+        }
+
+        state.timerId = setInterval(tick, 1000);
+      }
+
+      function endGame() {
+        clearInterval(state.timerId);
+        state.timerId = null;
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem("colorMatchBest", state.best);
+        }
+        bestEl.textContent = state.best;
+        overlay.querySelector("h2").textContent = "Time's up!";
+        overlay.querySelector("p").textContent = `Score: ${state.score} • Best: ${state.best}`;
+        startButton.textContent = "Play Again";
+        overlay.classList.remove("hidden");
+      }
+
+      startButton.addEventListener("click", startGame);
+      overlay.addEventListener("click", () => {
+        if (!overlay.classList.contains("hidden")) {
+          startGame();
+        }
+      });
+
+      window.addEventListener("resize", buildGrid);
+      buildGrid();
+    </script>
+  </body>
+</html>

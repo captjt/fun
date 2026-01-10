@@ -27,6 +27,15 @@ export const games: Game[] = [
     path: "/games/metro-runner/index.html",
     controls: "Swipe or use arrows/WASD to move, jump, or slide.",
   },
+  {
+    id: "color-match-pop",
+    name: "Color Match Pop",
+    description: "Pop the bubble that matches the target color.",
+    emoji: "🎈",
+    tags: ["puzzle", "reaction", "colors"],
+    path: "/games/color-match-pop/index.html",
+    controls: "Tap the bubble that matches the target color.",
+  },
 ];
 
 export const tagOptions = Array.from(
