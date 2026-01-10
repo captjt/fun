@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Puzzle Slider</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #fde68a 0%, #bbf7d0 45%, #a5b4fc 100%);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #0f172a;
+        touch-action: manipulation;
+      }
+
+      #gameShell {
+        width: min(640px, 94vw);
+        background: #f8fafc;
+        border-radius: 28px;
+        padding: 22px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        display: grid;
+        gap: 18px;
+      }
+
+      header {
+        text-align: center;
+        display: grid;
+        gap: 6px;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.5rem);
+      }
+
+      .subtitle {
+        font-size: 0.98rem;
+        color: #475569;
+      }
+
+      #hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        background: #e0f2fe;
+        border-radius: 16px;
+        padding: 10px 14px;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      #board {
+        width: min(420px, 88vw);
+        aspect-ratio: 1 / 1;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        padding: 10px;
+        background: #e2e8f0;
+        border-radius: 20px;
+      }
+
+      .tile {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f97316;
+        color: #fff7ed;
+        font-size: clamp(1.4rem, 3vw, 2rem);
+        font-weight: 700;
+        border-radius: 16px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
+        cursor: pointer;
+        transition:
+          transform 0.15s ease,
+          background 0.15s ease;
+      }
+
+      .tile.correct {
+        background: #22c55e;
+      }
+
+      .tile.empty {
+        background: transparent;
+        box-shadow: none;
+        cursor: default;
+      }
+
+      .controls {
+        display: grid;
+        gap: 10px;
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+
+      .controls button {
+        border: none;
+        border-radius: 999px;
+        padding: 12px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #0f172a;
+        color: #f8fafc;
+        transition:
+          transform 0.15s ease,
+          background 0.15s ease;
+      }
+
+      .controls button[data-active="true"] {
+        background: #f97316;
+        color: #fff7ed;
+      }
+
+      .controls button:active {
+        transform: scale(0.98);
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        color: #f8fafc;
+      }
+
+      #overlay.hidden {
+        display: none;
+      }
+
+      .overlay-card {
+        background: #1e293b;
+        border-radius: 24px;
+        padding: 28px;
+        max-width: 360px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .overlay-card button {
+        border: none;
+        padding: 12px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #fbbf24;
+        color: #0f172a;
+      }
+
+      @media (min-width: 640px) {
+        #board {
+          width: 460px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameShell">
+      <header>
+        <h1>Puzzle Slider</h1>
+        <p class="subtitle">Slide the tiles into order. Can you solve it fast?</p>
+      </header>
+
+      <section id="hud">
+        <div class="stat">Moves: <span id="moves">0</span></div>
+        <div class="stat">Time: <span id="time">0:00</span></div>
+        <div class="stat">Best: <span id="best">--</span></div>
+      </section>
+
+      <div id="board"></div>
+
+      <div class="controls">
+        <div class="control-row">
+          <button id="easyButton" data-active="false">Easy 3x3</button>
+          <button id="classicButton" data-active="true">Classic 4x4</button>
+        </div>
+        <div class="control-row">
+          <button id="themeButton">Theme: Numbers</button>
+          <button id="shuffleButton">Shuffle</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="overlay" class="hidden">
+      <div class="overlay-card">
+        <h2>Great Job!</h2>
+        <p id="resultText">You solved the puzzle.</p>
+        <button id="playAgain">Play Again</button>
+      </div>
+    </div>
+
+    <script>
+      const board = document.getElementById("board");
+      const movesEl = document.getElementById("moves");
+      const timeEl = document.getElementById("time");
+      const bestEl = document.getElementById("best");
+      const shuffleButton = document.getElementById("shuffleButton");
+      const easyButton = document.getElementById("easyButton");
+      const classicButton = document.getElementById("classicButton");
+      const themeButton = document.getElementById("themeButton");
+      const overlay = document.getElementById("overlay");
+      const resultText = document.getElementById("resultText");
+      const playAgain = document.getElementById("playAgain");
+
+      const themes = {
+        numbers: {
+          label: "Numbers",
+          tiles: [],
+        },
+        emoji: {
+          label: "Emoji",
+          tiles: [
+            "🐶",
+            "🐱",
+            "🐰",
+            "🦊",
+            "🐼",
+            "🐵",
+            "🐸",
+            "🦄",
+            "🐙",
+            "🐧",
+            "🐢",
+            "🦖",
+            "🦋",
+            "🐝",
+            "🦕",
+          ],
+        },
+      };
+
+      let currentTheme = "numbers";
+      let size = 4;
+      let totalTiles = size * size;
+      let tiles = [];
+      let emptyIndex = totalTiles - 1;
+      let moves = 0;
+      let startTime = null;
+      let timerId = null;
+      let bestMoves = Number(localStorage.getItem(bestMovesKey(size)) || 0);
+
+      function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+      }
+
+      function updateHud() {
+        movesEl.textContent = moves;
+        if (startTime) {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          timeEl.textContent = formatTime(elapsed);
+        } else {
+          timeEl.textContent = "0:00";
+        }
+        bestEl.textContent = bestMoves ? `${bestMoves} moves` : "--";
+      }
+
+      function bestMovesKey(boardSize) {
+        return `puzzleSliderBestMoves-${boardSize}`;
+      }
+
+      function updateLayout() {
+        board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      }
+
+      function setActiveSize(boardSize) {
+        size = boardSize;
+        totalTiles = size * size;
+        emptyIndex = totalTiles - 1;
+        bestMoves = Number(localStorage.getItem(bestMovesKey(size)) || 0);
+        easyButton.dataset.active = String(size === 3);
+        classicButton.dataset.active = String(size === 4);
+        updateLayout();
+        shuffleBoard();
+      }
+
+      function setTheme(themeName) {
+        currentTheme = themeName;
+        themeButton.textContent = `Theme: ${themes[themeName].label}`;
+        buildBoard();
+      }
+
+      function buildBoard() {
+        board.innerHTML = "";
+        tiles.forEach((value, index) => {
+          const tile = document.createElement("button");
+          tile.className = "tile";
+          if (value === 0) {
+            tile.classList.add("empty");
+          } else {
+            tile.textContent = getTileLabel(value);
+            if (value === index + 1) {
+              tile.classList.add("correct");
+            }
+            tile.addEventListener("click", () => handleMove(index));
+          }
+          board.appendChild(tile);
+        });
+      }
+
+      function getTileLabel(value) {
+        if (currentTheme === "emoji") {
+          return themes.emoji.tiles[value - 1] || value;
+        }
+        return value;
+      }
+
+      function isAdjacent(index) {
+        const row = Math.floor(index / size);
+        const col = index % size;
+        const emptyRow = Math.floor(emptyIndex / size);
+        const emptyCol = emptyIndex % size;
+        return Math.abs(row - emptyRow) + Math.abs(col - emptyCol) === 1;
+      }
+
+      function handleMove(index) {
+        if (!isAdjacent(index) || tiles[index] === 0) return;
+        tiles[emptyIndex] = tiles[index];
+        tiles[index] = 0;
+        emptyIndex = index;
+        moves += 1;
+
+        if (!startTime) {
+          startTime = Date.now();
+          timerId = setInterval(updateHud, 1000);
+        }
+
+        buildBoard();
+        updateHud();
+        if (isSolved()) {
+          endGame();
+        }
+      }
+
+      function isSolved() {
+        return tiles.slice(0, totalTiles - 1).every((value, index) => value === index + 1);
+      }
+
+      function shuffleBoard() {
+        tiles = Array.from({ length: totalTiles }, (_, index) =>
+          index === totalTiles - 1 ? 0 : index + 1,
+        );
+        emptyIndex = totalTiles - 1;
+        moves = 0;
+        startTime = null;
+        clearInterval(timerId);
+        timerId = null;
+        overlay.classList.add("hidden");
+
+        let shuffleMoves = size === 3 ? 80 : 200;
+        while (shuffleMoves > 0) {
+          const neighbors = getNeighbors(emptyIndex);
+          const nextIndex = neighbors[Math.floor(Math.random() * neighbors.length)];
+          tiles[emptyIndex] = tiles[nextIndex];
+          tiles[nextIndex] = 0;
+          emptyIndex = nextIndex;
+          shuffleMoves -= 1;
+        }
+
+        buildBoard();
+        updateHud();
+      }
+
+      function getNeighbors(index) {
+        const neighbors = [];
+        const row = Math.floor(index / size);
+        const col = index % size;
+        if (row > 0) neighbors.push(index - size);
+        if (row < size - 1) neighbors.push(index + size);
+        if (col > 0) neighbors.push(index - 1);
+        if (col < size - 1) neighbors.push(index + 1);
+        return neighbors;
+      }
+
+      function endGame() {
+        clearInterval(timerId);
+        timerId = null;
+        if (!bestMoves || moves < bestMoves) {
+          bestMoves = moves;
+          localStorage.setItem(bestMovesKey(size), bestMoves);
+        }
+        updateHud();
+        resultText.textContent = `Solved in ${moves} moves!`;
+        overlay.classList.remove("hidden");
+      }
+
+      shuffleButton.addEventListener("click", shuffleBoard);
+      playAgain.addEventListener("click", shuffleBoard);
+      easyButton.addEventListener("click", () => setActiveSize(3));
+      classicButton.addEventListener("click", () => setActiveSize(4));
+      themeButton.addEventListener("click", () =>
+        setTheme(currentTheme === "numbers" ? "emoji" : "numbers"),
+      );
+      overlay.addEventListener("click", () => {
+        if (!overlay.classList.contains("hidden")) {
+          shuffleBoard();
+        }
+      });
+
+      updateLayout();
+      setTheme("numbers");
+      shuffleBoard();
+    </script>
+  </body>
+</html>

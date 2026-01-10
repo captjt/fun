@@ -301,12 +301,7 @@
           Array.from(row).forEach((pixel, colIndex) => {
             if (pixel === ".") return;
             ctx.fillStyle = palette[pixel] || "#ffffff";
-            ctx.fillRect(
-              x + colIndex * scale,
-              y + rowIndex * scale,
-              scale,
-              scale,
-            );
+            ctx.fillRect(x + colIndex * scale, y + rowIndex * scale, scale, scale);
           });
         });
       }

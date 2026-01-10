@@ -220,8 +220,24 @@
           ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
           ctx.beginPath();
           ctx.ellipse(cloud.x, cloud.y, cloud.size, cloud.size * 0.6, 0, 0, Math.PI * 2);
-          ctx.ellipse(cloud.x + cloud.size * 0.6, cloud.y + cloud.size * 0.1, cloud.size * 0.8, cloud.size * 0.5, 0, 0, Math.PI * 2);
-          ctx.ellipse(cloud.x - cloud.size * 0.5, cloud.y + cloud.size * 0.1, cloud.size * 0.7, cloud.size * 0.4, 0, 0, Math.PI * 2);
+          ctx.ellipse(
+            cloud.x + cloud.size * 0.6,
+            cloud.y + cloud.size * 0.1,
+            cloud.size * 0.8,
+            cloud.size * 0.5,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.ellipse(
+            cloud.x - cloud.size * 0.5,
+            cloud.y + cloud.size * 0.1,
+            cloud.size * 0.7,
+            cloud.size * 0.4,
+            0,
+            0,
+            Math.PI * 2,
+          );
           ctx.fill();
         });
       }
@@ -293,8 +309,7 @@
 
         if (state.running) {
           state.elapsed += delta;
-          const difficultyLevel =
-            Math.floor(state.score / 30) + Math.floor(state.elapsed / 12);
+          const difficultyLevel = Math.floor(state.score / 30) + Math.floor(state.elapsed / 12);
           state.speed = 1.2 + difficultyLevel * 0.25;
           state.spawnInterval = Math.max(0.45, 1.4 - difficultyLevel * 0.08);
 

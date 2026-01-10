@@ -45,6 +45,15 @@ export const games: Game[] = [
     path: "/games/balloon-defender/index.html",
     controls: "Tap balloons before they reach the top.",
   },
+  {
+    id: "puzzle-slider",
+    name: "Puzzle Slider",
+    description: "Slide the tiles into the correct order.",
+    emoji: "🧩",
+    tags: ["puzzle", "logic", "relax"],
+    path: "/games/puzzle-slider/index.html",
+    controls: "Tap a tile next to the empty space to slide it.",
+  },
 ];
 
 export const tagOptions = Array.from(
