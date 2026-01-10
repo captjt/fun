@@ -36,6 +36,15 @@ export const games: Game[] = [
     path: "/games/color-match-pop/index.html",
     controls: "Tap the bubble that matches the target color.",
   },
+  {
+    id: "balloon-defender",
+    name: "Balloon Defender",
+    description: "Pop balloons before they float away.",
+    emoji: "🎯",
+    tags: ["arcade", "reaction", "tapping"],
+    path: "/games/balloon-defender/index.html",
+    controls: "Tap balloons before they reach the top.",
+  },
 ];
 
 export const tagOptions = Array.from(
