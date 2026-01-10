@@ -36,6 +36,7 @@
         width: 100%;
         height: 100%;
         display: block;
+        touch-action: none;
       }
 
       #overlay {
@@ -589,6 +590,7 @@
       });
 
       canvas.addEventListener("click", () => handleStart());
+      overlay.addEventListener("click", () => handleStart());
 
       canvas.addEventListener(
         "touchstart",
@@ -626,6 +628,31 @@
 
           touchStartX = null;
           touchStartY = null;
+        },
+        { passive: false },
+      );
+
+      canvas.addEventListener(
+        "touchmove",
+        (event) => {
+          event.preventDefault();
+        },
+        { passive: false },
+      );
+
+      overlay.addEventListener(
+        "touchstart",
+        (event) => {
+          event.preventDefault();
+          handleStart();
+        },
+        { passive: false },
+      );
+
+      document.body.addEventListener(
+        "touchmove",
+        (event) => {
+          event.preventDefault();
         },
         { passive: false },
       );
