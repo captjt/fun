@@ -18,6 +18,15 @@ export const games: Game[] = [
     path: "/games/flappy-bird/index.html",
     controls: "Tap, click, or press Space to flap.",
   },
+  {
+    id: "metro-runner",
+    name: "Metro Runner",
+    description: "Run the rails, switch lanes, and dodge the rush-hour chaos.",
+    emoji: "🚇",
+    tags: ["runner", "arcade", "reaction"],
+    path: "/games/metro-runner/index.html",
+    controls: "Swipe or use arrows/WASD to move, jump, or slide.",
+  },
 ];
 
 export const tagOptions = Array.from(

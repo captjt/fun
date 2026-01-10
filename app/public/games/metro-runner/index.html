@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Metro Runner</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #1f2937, #0f172a 70%);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        overflow: hidden;
+        touch-action: manipulation;
+      }
+
+      #gameFrame {
+        position: relative;
+        width: min(96vw, 540px);
+        height: min(96vh, 960px);
+        background: linear-gradient(180deg, #0ea5e9 0%, #38bdf8 35%, #fbbf24 100%);
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.5);
+        overflow: hidden;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      #overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.7);
+        color: #f8fafc;
+        text-align: center;
+        padding: 24px;
+        gap: 16px;
+      }
+
+      #overlay.hidden {
+        display: none;
+      }
+
+      .title {
+        font-size: clamp(2rem, 4vw, 3rem);
+        font-weight: 700;
+      }
+
+      .subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+        max-width: 360px;
+      }
+
+      .controls {
+        font-size: 0.95rem;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameFrame">
+      <canvas id="gameCanvas" width="540" height="960"></canvas>
+      <div id="overlay">
+        <div class="title">Metro Runner</div>
+        <div class="subtitle">Dash down the tracks, dodge obstacles, and stay on the move.</div>
+        <div class="controls">Swipe or use ← → to change lanes. ↑ to jump. ↓ to slide.</div>
+        <div class="controls">Tap or press Space to start.</div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const overlay = document.getElementById("overlay");
+
+      const lanes = [-120, 0, 120];
+      const groundY = 820;
+      const horizonY = 140;
+      const spriteScale = 3;
+
+      const player = {
+        laneIndex: 1,
+        x: lanes[1],
+        y: groundY,
+        width: 18 * spriteScale,
+        height: 28 * spriteScale,
+        velocityY: 0,
+        state: "run",
+        stateTimer: 0,
+        frame: 0,
+        frameTimer: 0,
+      };
+
+      const game = {
+        running: false,
+        over: false,
+        speed: 7.2,
+        spawnTimer: 0,
+        spawnInterval: 90,
+        score: 0,
+        best: Number(localStorage.getItem("metroRunnerBest") || 0),
+      };
+
+      const obstacles = [];
+      const stars = Array.from({ length: 30 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 1,
+      }));
+
+      const runnerFrames = [
+        [
+          "..333...333..",
+          ".3444434444.",
+          ".3444434444.",
+          ".3333333333.",
+          "..33333333..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          ".2222222222.",
+          ".2222222222.",
+          "..2..22..2..",
+          "..2..22..2..",
+          ".22..22..22.",
+          ".22..22..22.",
+          "22...22...22",
+          "22...22...22",
+          ".2...22...2.",
+          "....22....",
+          "....22....",
+          "...2..2...",
+          "..2....2..",
+          ".2......2.",
+        ],
+        [
+          "..333...333..",
+          ".3444434444.",
+          ".3444434444.",
+          ".3333333333.",
+          "..33333333..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          ".2222222222.",
+          ".2222222222.",
+          "..2..22..2..",
+          "..2..22..2..",
+          "22...22...22",
+          "22...22...22",
+          ".22..22..22.",
+          ".22..22..22.",
+          "..2..22..2..",
+          "...2..2...",
+          "..2....2..",
+          ".2......2.",
+        ],
+        [
+          "..333...333..",
+          ".3444434444.",
+          ".3444434444.",
+          ".3333333333.",
+          "..33333333..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          ".2222222222.",
+          ".2222222222.",
+          "..2..22..2..",
+          "..2..22..2..",
+          ".22..22..22.",
+          ".22..22..22.",
+          "...22..22...",
+          "...22..22...",
+          "....22....",
+          "...2..2...",
+          "..2....2..",
+          ".2......2.",
+        ],
+        [
+          "..333...333..",
+          ".3444434444.",
+          ".3444434444.",
+          ".3333333333.",
+          "..33333333..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          "..22222222..",
+          ".2222222222.",
+          ".2222222222.",
+          "..2..22..2..",
+          "..2..22..2..",
+          "22..22..22..",
+          "22..22..22..",
+          "..22..22..",
+          "..22..22..",
+          "....22....",
+          "...2..2...",
+          "..2....2..",
+          ".2......2.",
+        ],
+      ];
+
+      const slideFrame = [
+        "...333333...",
+        "..34444443..",
+        "..34444443..",
+        "..33333333..",
+        "..33333333..",
+        "..22222222..",
+        "..22222222..",
+        "222222222222",
+        "222222222222",
+        "..22222222..",
+        "..22222222..",
+        "..22....22..",
+        "..22....22..",
+        "..22....22..",
+        "..2......2..",
+      ];
+
+      const obstacleSprites = [
+        [
+          "..777777..",
+          ".77777777.",
+          "7777777777",
+          "7777777777",
+          "7777777777",
+          "7777777777",
+          "7777777777",
+          "7777777777",
+          "7777777777",
+          "7777777777",
+          "..777777..",
+        ],
+        [
+          "..888888..",
+          ".88888888.",
+          "8888888888",
+          "8888888888",
+          "8888888888",
+          "8888888888",
+          "8888888888",
+          "8888888888",
+          "8888888888",
+          "..888888..",
+        ],
+      ];
+
+      const palette = {
+        2: "#fde68a",
+        3: "#f97316",
+        4: "#0f172a",
+        7: "#1f2937",
+        8: "#ef4444",
+      };
+
+      function drawPixelSprite(sprite, x, y, scale = 1) {
+        sprite.forEach((row, rowIndex) => {
+          Array.from(row).forEach((pixel, colIndex) => {
+            if (pixel === ".") return;
+            ctx.fillStyle = palette[pixel] || "#ffffff";
+            ctx.fillRect(
+              x + colIndex * scale,
+              y + rowIndex * scale,
+              scale,
+              scale,
+            );
+          });
+        });
+      }
+
+      function resize() {
+        const frame = document.getElementById("gameFrame");
+        const maxWidth = window.innerWidth * 0.96;
+        const maxHeight = window.innerHeight * 0.96;
+        const aspect = 9 / 16;
+        let width = maxWidth;
+        let height = maxWidth / aspect;
+
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = maxHeight * aspect;
+        }
+
+        frame.style.width = `${width}px`;
+        frame.style.height = `${height}px`;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      }
+
+      function resetGame() {
+        game.running = true;
+        game.over = false;
+        game.speed = 7.2;
+        game.spawnTimer = 0;
+        game.spawnInterval = 90;
+        game.score = 0;
+        player.laneIndex = 1;
+        player.x = lanes[1];
+        player.y = groundY;
+        player.velocityY = 0;
+        player.state = "run";
+        player.stateTimer = 0;
+        obstacles.length = 0;
+        overlay.classList.add("hidden");
+      }
+
+      function endGame() {
+        game.running = false;
+        game.over = true;
+        if (game.score > game.best) {
+          game.best = game.score;
+          localStorage.setItem("metroRunnerBest", game.best);
+        }
+        overlay.innerHTML = `
+          <div class="title">Nice Try!</div>
+          <div class="subtitle">Score: ${Math.floor(game.score)} • Best: ${Math.floor(game.best)}</div>
+          <div class="controls">Tap or press Space to run again.</div>
+        `;
+        overlay.classList.remove("hidden");
+      }
+
+      function spawnObstacle() {
+        const laneIndex = Math.floor(Math.random() * 3);
+        const sprite = obstacleSprites[Math.floor(Math.random() * obstacleSprites.length)];
+        const scale = spriteScale * (laneIndex === 1 ? 1.2 : 1.1);
+        const width = sprite[0].length * scale;
+        const height = sprite.length * scale;
+
+        obstacles.push({
+          laneIndex,
+          x: lanes[laneIndex],
+          y: horizonY - height,
+          width,
+          height,
+          scale,
+          sprite,
+        });
+      }
+
+      function updatePlayer() {
+        if (player.state === "jump") {
+          player.velocityY += 1.1;
+          player.y += player.velocityY;
+          if (player.y >= groundY) {
+            player.y = groundY;
+            player.velocityY = 0;
+            player.state = "run";
+          }
+        } else if (player.state === "slide") {
+          player.stateTimer -= 1;
+          if (player.stateTimer <= 0) {
+            player.state = "run";
+          }
+        }
+
+        player.x = lanes[player.laneIndex];
+        player.frameTimer += 1;
+        if (player.frameTimer > 8) {
+          player.frame = (player.frame + 1) % runnerFrames.length;
+          player.frameTimer = 0;
+        }
+      }
+
+      function updateObstacles() {
+        game.spawnTimer += 1;
+        const spawnInterval = Math.max(48, game.spawnInterval - Math.floor(game.score / 150));
+        if (game.spawnTimer >= spawnInterval) {
+          game.spawnTimer = 0;
+          spawnObstacle();
+        }
+
+        obstacles.forEach((obstacle) => {
+          obstacle.y += game.speed;
+        });
+
+        while (obstacles.length && obstacles[0].y > canvas.height + 120) {
+          obstacles.shift();
+        }
+      }
+
+      function checkCollision() {
+        const playerHeight = player.state === "slide" ? player.height * 0.6 : player.height;
+        const playerY = player.y - playerHeight;
+        const playerRect = {
+          x: canvas.width / 2 + player.x - player.width / 2,
+          y: playerY,
+          width: player.width,
+          height: playerHeight,
+        };
+
+        for (const obstacle of obstacles) {
+          const obstacleRect = {
+            x: canvas.width / 2 + obstacle.x - obstacle.width / 2,
+            y: obstacle.y,
+            width: obstacle.width,
+            height: obstacle.height,
+          };
+
+          const collision =
+            playerRect.x < obstacleRect.x + obstacleRect.width &&
+            playerRect.x + playerRect.width > obstacleRect.x &&
+            playerRect.y < obstacleRect.y + obstacleRect.height &&
+            playerRect.y + playerRect.height > obstacleRect.y;
+
+          if (collision) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      function drawBackground() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#38bdf8");
+        gradient.addColorStop(0.4, "#7dd3fc");
+        gradient.addColorStop(0.75, "#fbbf24");
+        gradient.addColorStop(1, "#f97316");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+        stars.forEach((star) => {
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+      }
+
+      function drawTrack() {
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(canvas.width / 2 - 190, horizonY, 380, canvas.height - horizonY);
+
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(canvas.width / 2 - 60, horizonY, 120, canvas.height - horizonY);
+
+        ctx.strokeStyle = "rgba(248, 250, 252, 0.5)";
+        ctx.lineWidth = 4;
+        ctx.setLineDash([14, 18]);
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2 - 120, horizonY);
+        ctx.lineTo(canvas.width / 2 - 120, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2 + 120, horizonY);
+        ctx.lineTo(canvas.width / 2 + 120, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function drawPlayer() {
+        const sprite = player.state === "slide" ? slideFrame : runnerFrames[player.frame];
+        const height = sprite.length * spriteScale;
+        const width = sprite[0].length * spriteScale;
+        const x = canvas.width / 2 + player.x - width / 2;
+        const y = player.y - height;
+        drawPixelSprite(sprite, x, y, spriteScale);
+      }
+
+      function drawObstacles() {
+        obstacles.forEach((obstacle) => {
+          const x = canvas.width / 2 + obstacle.x - obstacle.width / 2;
+          drawPixelSprite(obstacle.sprite, x, obstacle.y, obstacle.scale);
+        });
+      }
+
+      function drawHUD() {
+        ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+        ctx.fillRect(20, 20, 200, 64);
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 24px 'Segoe UI'";
+        ctx.fillText(`Score ${Math.floor(game.score)}`, 32, 52);
+      }
+
+      function gameLoop() {
+        if (game.running) {
+          updatePlayer();
+          updateObstacles();
+          game.score += 0.5 + game.speed / 10;
+          game.speed = Math.min(14, game.speed + 0.002);
+        }
+
+        drawBackground();
+        drawTrack();
+        drawObstacles();
+        drawPlayer();
+        drawHUD();
+
+        if (game.running && checkCollision()) {
+          endGame();
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      function moveLane(direction) {
+        if (!game.running) return;
+        player.laneIndex = Math.max(0, Math.min(2, player.laneIndex + direction));
+      }
+
+      function jump() {
+        if (!game.running) return;
+        if (player.state === "run") {
+          player.state = "jump";
+          player.velocityY = -18;
+        }
+      }
+
+      function slide() {
+        if (!game.running) return;
+        if (player.state === "run") {
+          player.state = "slide";
+          player.stateTimer = 26;
+        }
+      }
+
+      function handleStart() {
+        if (!game.running) {
+          resetGame();
+        }
+      }
+
+      let touchStartX = null;
+      let touchStartY = null;
+
+      document.addEventListener("keydown", (event) => {
+        if (event.code === "Space") {
+          event.preventDefault();
+          handleStart();
+        }
+        if (event.code === "ArrowLeft" || event.key === "a") {
+          moveLane(-1);
+        }
+        if (event.code === "ArrowRight" || event.key === "d") {
+          moveLane(1);
+        }
+        if (event.code === "ArrowUp" || event.key === "w") {
+          jump();
+        }
+        if (event.code === "ArrowDown" || event.key === "s") {
+          slide();
+        }
+      });
+
+      canvas.addEventListener("click", () => handleStart());
+
+      canvas.addEventListener(
+        "touchstart",
+        (event) => {
+          event.preventDefault();
+          const touch = event.changedTouches[0];
+          touchStartX = touch.clientX;
+          touchStartY = touch.clientY;
+        },
+        { passive: false },
+      );
+
+      canvas.addEventListener(
+        "touchend",
+        (event) => {
+          event.preventDefault();
+          if (touchStartX === null || touchStartY === null) return;
+          const touch = event.changedTouches[0];
+          const deltaX = touch.clientX - touchStartX;
+          const deltaY = touch.clientY - touchStartY;
+          const absX = Math.abs(deltaX);
+          const absY = Math.abs(deltaY);
+
+          if (Math.max(absX, absY) < 20) {
+            handleStart();
+          } else if (absX > absY) {
+            moveLane(deltaX > 0 ? 1 : -1);
+          } else {
+            if (deltaY < 0) {
+              jump();
+            } else {
+              slide();
+            }
+          }
+
+          touchStartX = null;
+          touchStartY = null;
+        },
+        { passive: false },
+      );
+
+      window.addEventListener("resize", resize);
+      resize();
+      gameLoop();
+    </script>
+  </body>
+</html>
