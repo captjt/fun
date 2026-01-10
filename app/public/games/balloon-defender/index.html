@@ -129,6 +129,7 @@
       <section id="hud">
         <div class="stat">Score: <span id="score">0</span></div>
         <div class="stat">Lives: <span id="lives">5</span></div>
+        <div class="stat">Level: <span id="level">1</span></div>
         <div class="stat">Best: <span id="best">0</span></div>
       </section>
 
@@ -150,6 +151,7 @@
       const ctx = canvas.getContext("2d");
       const scoreEl = document.getElementById("score");
       const livesEl = document.getElementById("lives");
+      const levelEl = document.getElementById("level");
       const bestEl = document.getElementById("best");
       const overlay = document.getElementById("overlay");
       const startButton = document.getElementById("startButton");
@@ -161,7 +163,8 @@
         lives: 5,
         speed: 1.2,
         spawnTimer: 0,
-        spawnInterval: 75,
+        spawnInterval: 1.4,
+        elapsed: 0,
         best: Number(localStorage.getItem("balloonDefenderBest") || 0),
       };
 
@@ -181,7 +184,8 @@
         state.lives = 5;
         state.speed = 1.2;
         state.spawnTimer = 0;
-        state.spawnInterval = 75;
+        state.spawnInterval = 1.4;
+        state.elapsed = 0;
         balloons.length = 0;
         overlay.classList.add("hidden");
         updateHud();
@@ -190,6 +194,7 @@
       function updateHud() {
         scoreEl.textContent = state.score;
         livesEl.textContent = state.lives;
+        levelEl.textContent = Math.max(1, Math.floor(state.score / 30) + 1);
         bestEl.textContent = state.best;
       }
 
@@ -252,10 +257,6 @@
           if (distance <= balloon.radius) {
             balloons.splice(i, 1);
             state.score += 5;
-            if (state.score % 40 === 0) {
-              state.speed += 0.4;
-              state.spawnInterval = Math.max(40, state.spawnInterval - 4);
-            }
             updateHud();
             return;
           }
@@ -275,7 +276,12 @@
         overlay.classList.remove("hidden");
       }
 
-      function gameLoop() {
+      let lastTime = 0;
+
+      function gameLoop(timestamp) {
+        const delta = (timestamp - lastTime) / 1000 || 0;
+        lastTime = timestamp;
+
         drawBackground();
 
         clouds.forEach((cloud) => {
@@ -286,7 +292,13 @@
         });
 
         if (state.running) {
-          state.spawnTimer += 1;
+          state.elapsed += delta;
+          const difficultyLevel =
+            Math.floor(state.score / 30) + Math.floor(state.elapsed / 12);
+          state.speed = 1.2 + difficultyLevel * 0.25;
+          state.spawnInterval = Math.max(0.45, 1.4 - difficultyLevel * 0.08);
+
+          state.spawnTimer += delta;
           if (state.spawnTimer >= state.spawnInterval) {
             state.spawnTimer = 0;
             spawnBalloon();
