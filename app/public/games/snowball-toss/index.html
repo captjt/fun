@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Snowball Toss</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 45%, #bfdbfe 100%);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #0f172a;
+        touch-action: none;
+      }
+
+      #gameShell {
+        width: min(720px, 95vw);
+        background: #f8fafc;
+        border-radius: 28px;
+        padding: 20px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        display: grid;
+        gap: 16px;
+      }
+
+      header {
+        text-align: center;
+        display: grid;
+        gap: 6px;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.6rem);
+      }
+
+      .subtitle {
+        font-size: 0.98rem;
+        color: #475569;
+      }
+
+      #hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        background: #e0f2fe;
+        border-radius: 16px;
+        padding: 10px 14px;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      #arena {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 4 / 5;
+        border-radius: 24px;
+        background: linear-gradient(180deg, #e0f2fe 0%, #f8fafc 100%);
+        overflow: hidden;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        color: #f8fafc;
+      }
+
+      #overlay.hidden {
+        display: none;
+      }
+
+      .overlay-card {
+        background: #1e293b;
+        border-radius: 24px;
+        padding: 28px;
+        max-width: 360px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .overlay-card button {
+        border: none;
+        padding: 12px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #fbbf24;
+        color: #0f172a;
+      }
+
+      @media (min-width: 640px) {
+        #arena {
+          aspect-ratio: 16 / 10;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameShell">
+      <header>
+        <h1>Snowball Toss</h1>
+        <p class="subtitle">Tap the targets before they vanish!</p>
+      </header>
+
+      <section id="hud">
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Round: <span id="round">1</span></div>
+        <div class="stat">Time: <span id="time">30</span>s</div>
+        <div class="stat">Best: <span id="best">0</span></div>
+      </section>
+
+      <div id="arena">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div class="overlay-card">
+        <h2>Snowball Toss</h2>
+        <p>Hit the snowball targets before the timer ends.</p>
+        <button id="startButton">Start Throwing</button>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const roundEl = document.getElementById("round");
+      const timeEl = document.getElementById("time");
+      const bestEl = document.getElementById("best");
+      const overlay = document.getElementById("overlay");
+      const startButton = document.getElementById("startButton");
+
+      const state = {
+        running: false,
+        score: 0,
+        round: 1,
+        timeLeft: 30,
+        timerId: null,
+        targets: [],
+        spawnTimer: 0,
+        spawnInterval: 1.2,
+        best: Number(localStorage.getItem("snowballTossBest") || 0),
+      };
+
+      const snowflakes = Array.from({ length: 35 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 3 + 1,
+        speed: Math.random() * 0.6 + 0.3,
+      }));
+
+      bestEl.textContent = state.best;
+
+      function resetGame() {
+        state.running = true;
+        state.score = 0;
+        state.round = 1;
+        state.timeLeft = 30;
+        state.targets = [];
+        state.spawnTimer = 0;
+        state.spawnInterval = 1.2;
+        overlay.classList.add("hidden");
+        updateHud();
+        startTimer();
+      }
+
+      function updateHud() {
+        scoreEl.textContent = state.score;
+        roundEl.textContent = state.round;
+        timeEl.textContent = state.timeLeft;
+        bestEl.textContent = state.best;
+      }
+
+      function startTimer() {
+        clearInterval(state.timerId);
+        state.timerId = setInterval(() => {
+          state.timeLeft -= 1;
+          if (state.timeLeft <= 0) {
+            endGame();
+          }
+          updateHud();
+        }, 1000);
+      }
+
+      function spawnTarget() {
+        const size = 32 + Math.random() * 18;
+        const padding = size + 10;
+        state.targets.push({
+          x: Math.random() * (canvas.width - padding * 2) + padding,
+          y: Math.random() * (canvas.height - padding * 2) + padding,
+          size,
+          ttl: 1.2 + Math.random() * 0.7,
+        });
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#e0f2fe");
+        gradient.addColorStop(1, "#f8fafc");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        snowflakes.forEach((flake) => {
+          ctx.fillStyle = "rgba(255,255,255,0.8)";
+          ctx.beginPath();
+          ctx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      function drawTargets() {
+        state.targets.forEach((target) => {
+          ctx.fillStyle = "#60a5fa";
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, target.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = "rgba(15, 23, 42, 0.5)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, target.size * 0.6, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = "rgba(15, 23, 42, 0.35)";
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, target.size * 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+      }
+
+      function updateTargets(delta) {
+        state.targets.forEach((target) => {
+          target.ttl -= delta;
+        });
+        state.targets = state.targets.filter((target) => target.ttl > 0);
+      }
+
+      function handleTap(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+
+        for (let i = state.targets.length - 1; i >= 0; i--) {
+          const target = state.targets[i];
+          const distance = Math.hypot(x - target.x, y - target.y);
+          if (distance <= target.size) {
+            state.targets.splice(i, 1);
+            state.score += Math.floor(8 + target.size / 4);
+            updateHud();
+            return;
+          }
+        }
+      }
+
+      function advanceRound() {
+        state.round += 1;
+        state.spawnInterval = Math.max(0.6, state.spawnInterval - 0.08);
+      }
+
+      function endGame() {
+        state.running = false;
+        clearInterval(state.timerId);
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem("snowballTossBest", state.best);
+        }
+        updateHud();
+        overlay.querySelector("h2").textContent = "Winter Winner!";
+        overlay.querySelector("p").textContent = `Score: ${state.score} • Best: ${state.best}`;
+        startButton.textContent = "Play Again";
+        overlay.classList.remove("hidden");
+      }
+
+      let lastTime = 0;
+      function gameLoop(timestamp) {
+        const delta = (timestamp - lastTime) / 1000 || 0;
+        lastTime = timestamp;
+
+        drawBackground();
+
+        snowflakes.forEach((flake) => {
+          flake.y += flake.speed;
+          if (flake.y > canvas.height + 10) {
+            flake.y = -10;
+          }
+        });
+
+        if (state.running) {
+          state.spawnTimer += delta;
+          if (state.spawnTimer >= state.spawnInterval) {
+            state.spawnTimer = 0;
+            spawnTarget();
+          }
+
+          updateTargets(delta);
+
+          if (Math.floor(state.score / 120) + 1 > state.round) {
+            advanceRound();
+          }
+        }
+
+        drawTargets();
+        requestAnimationFrame(gameLoop);
+      }
+
+      canvas.addEventListener("click", (event) => {
+        if (!state.running) return;
+        handleTap(event.clientX, event.clientY);
+      });
+
+      canvas.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        if (!state.running) return;
+        const touch = event.changedTouches[0];
+        handleTap(touch.clientX, touch.clientY);
+      }, { passive: false });
+
+      overlay.addEventListener("click", () => resetGame());
+      overlay.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        resetGame();
+      }, { passive: false });
+      startButton.addEventListener("click", resetGame);
+
+      gameLoop();
+    </script>
+  </body>
+</html>

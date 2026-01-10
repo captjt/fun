@@ -54,6 +54,24 @@ export const games: Game[] = [
     path: "/games/puzzle-slider/index.html",
     controls: "Tap a tile next to the empty space to slide it.",
   },
+  {
+    id: "fruit-catcher",
+    name: "Fruit Catcher",
+    description: "Catch fruit, avoid the veggies.",
+    emoji: "🍎",
+    tags: ["arcade", "reaction", "tapping"],
+    path: "/games/fruit-catcher/index.html",
+    controls: "Move the basket with your finger or mouse.",
+  },
+  {
+    id: "snowball-toss",
+    name: "Snowball Toss",
+    description: "Tap the targets before they disappear.",
+    emoji: "❄️",
+    tags: ["arcade", "reaction", "precision"],
+    path: "/games/snowball-toss/index.html",
+    controls: "Tap the targets quickly to score points.",
+  },
 ];
 
 export const tagOptions = Array.from(

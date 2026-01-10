@@ -3,10 +3,10 @@
 ## Ready Now (Short Builds)
 
 - ~Color Match Pop: tap matching colored bubbles before time runs out.~
-- Balloon Defender: pop balloons before they reach the top.
-- Fruit Catcher: catch falling fruit, avoid rotten items.
-- Puzzle Slider: 3x3 or 4x4 tile puzzle with animals or icons.
-- Snowball Toss: aim-and-throw target game with moving targets.
+- ~Balloon Defender: pop balloons before they reach the top.~
+- ~Fruit Catcher: catch falling fruit, avoid rotten items.~
+- ~Puzzle Slider: 3x3 or 4x4 tile puzzle with animals or icons.~
+- ~Snowball Toss: aim-and-throw target game with moving targets.~
 
 ## Next Up (Medium Builds)
 

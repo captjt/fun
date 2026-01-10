@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Fruit Catcher</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #bbf7d0 0%, #fef9c3 45%, #fbcfe8 100%);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #0f172a;
+        touch-action: none;
+      }
+
+      #gameShell {
+        width: min(720px, 95vw);
+        background: #ffffff;
+        border-radius: 28px;
+        padding: 20px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        display: grid;
+        gap: 16px;
+      }
+
+      header {
+        text-align: center;
+        display: grid;
+        gap: 6px;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.6rem);
+      }
+
+      .subtitle {
+        font-size: 0.98rem;
+        color: #475569;
+      }
+
+      #hud {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        background: #ecfccb;
+        border-radius: 16px;
+        padding: 10px 14px;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      #arena {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 4 / 5;
+        border-radius: 24px;
+        background: linear-gradient(180deg, #bae6fd 0%, #fef08a 100%);
+        overflow: hidden;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      #overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        color: #f8fafc;
+      }
+
+      #overlay.hidden {
+        display: none;
+      }
+
+      .overlay-card {
+        background: #1e293b;
+        border-radius: 24px;
+        padding: 28px;
+        max-width: 360px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .overlay-card button {
+        border: none;
+        padding: 12px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #fbbf24;
+        color: #0f172a;
+      }
+
+      @media (min-width: 640px) {
+        #arena {
+          aspect-ratio: 16 / 10;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameShell">
+      <header>
+        <h1>Fruit Catcher</h1>
+        <p class="subtitle">Catch the fruit, dodge the icky veggies!</p>
+      </header>
+
+      <section id="hud">
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Streak: <span id="streak">0</span></div>
+        <div class="stat">Lives: <span id="lives">3</span></div>
+        <div class="stat">Best: <span id="best">0</span></div>
+      </section>
+
+      <div id="arena">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div class="overlay-card">
+        <h2>Fruit Catcher</h2>
+        <p>Move the basket to catch fruit and avoid the veggies.</p>
+        <button id="startButton">Start Catching</button>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const streakEl = document.getElementById("streak");
+      const livesEl = document.getElementById("lives");
+      const bestEl = document.getElementById("best");
+      const overlay = document.getElementById("overlay");
+      const startButton = document.getElementById("startButton");
+
+      const items = [
+        { label: "🍎", color: "#fb7185", points: 5, type: "fruit" },
+        { label: "🍌", color: "#fde047", points: 6, type: "fruit" },
+        { label: "🍇", color: "#c084fc", points: 7, type: "fruit" },
+        { label: "🍓", color: "#f43f5e", points: 8, type: "fruit" },
+        { label: "🥦", color: "#4ade80", points: -8, type: "veggie" },
+        { label: "🥕", color: "#fb923c", points: -6, type: "veggie" },
+      ];
+
+      const state = {
+        running: false,
+        score: 0,
+        streak: 0,
+        lives: 3,
+        speed: 2.2,
+        spawnTimer: 0,
+        spawnInterval: 0.9,
+        elapsed: 0,
+        best: Number(localStorage.getItem("fruitCatcherBest") || 0),
+      };
+
+      const basket = {
+        width: 120,
+        height: 26,
+        x: canvas.width / 2 - 60,
+        y: canvas.height - 60,
+        color: "#0f172a",
+      };
+
+      const fallingItems = [];
+
+      bestEl.textContent = state.best;
+
+      function resetGame() {
+        state.running = true;
+        state.score = 0;
+        state.streak = 0;
+        state.lives = 3;
+        state.speed = 2.2;
+        state.spawnTimer = 0;
+        state.spawnInterval = 0.9;
+        state.elapsed = 0;
+        basket.x = canvas.width / 2 - basket.width / 2;
+        fallingItems.length = 0;
+        overlay.classList.add("hidden");
+        updateHud();
+      }
+
+      function updateHud() {
+        scoreEl.textContent = state.score;
+        streakEl.textContent = state.streak;
+        livesEl.textContent = state.lives;
+        bestEl.textContent = state.best;
+      }
+
+      function spawnItem() {
+        const pick = items[Math.floor(Math.random() * items.length)];
+        const size = 36 + Math.random() * 12;
+        fallingItems.push({
+          ...pick,
+          x: Math.random() * (canvas.width - size) + size / 2,
+          y: -size,
+          size,
+          speed: state.speed + Math.random() * 0.8,
+        });
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "#bae6fd");
+        gradient.addColorStop(1, "#fef08a");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      function drawBasket() {
+        ctx.fillStyle = basket.color;
+        ctx.fillRect(basket.x, basket.y, basket.width, basket.height);
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillRect(basket.x + 10, basket.y - 12, basket.width - 20, 12);
+      }
+
+      function drawItems() {
+        fallingItems.forEach((item) => {
+          ctx.fillStyle = "rgba(255,255,255,0.6)";
+          ctx.beginPath();
+          ctx.arc(item.x + 4, item.y + 4, item.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = item.color;
+          ctx.beginPath();
+          ctx.arc(item.x, item.y, item.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.font = `${item.size}px "Segoe UI"`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(item.label, item.x, item.y + 2);
+        });
+      }
+
+      function updateItems() {
+        for (let i = fallingItems.length - 1; i >= 0; i--) {
+          fallingItems[i].y += fallingItems[i].speed;
+          if (fallingItems[i].y - fallingItems[i].size > canvas.height) {
+            fallingItems.splice(i, 1);
+            state.streak = 0;
+          }
+        }
+      }
+
+      function checkCollisions() {
+        for (let i = fallingItems.length - 1; i >= 0; i--) {
+          const item = fallingItems[i];
+          const withinX = item.x > basket.x && item.x < basket.x + basket.width;
+          const withinY = item.y + item.size / 2 > basket.y && item.y - item.size / 2 < basket.y + basket.height;
+          if (withinX && withinY) {
+            fallingItems.splice(i, 1);
+            if (item.type === "fruit") {
+              state.score += item.points + state.streak;
+              state.streak += 1;
+            } else {
+              state.score = Math.max(0, state.score + item.points);
+              state.streak = 0;
+              state.lives -= 1;
+            }
+            updateHud();
+          }
+        }
+      }
+
+      function endGame() {
+        state.running = false;
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem("fruitCatcherBest", state.best);
+        }
+        updateHud();
+        overlay.querySelector("h2").textContent = "Snack Time!";
+        overlay.querySelector("p").textContent = `Score: ${state.score} • Best: ${state.best}`;
+        startButton.textContent = "Play Again";
+        overlay.classList.remove("hidden");
+      }
+
+      function setBasketPosition(clientX) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const targetX = (clientX - rect.left) * scaleX - basket.width / 2;
+        basket.x = Math.min(canvas.width - basket.width, Math.max(0, targetX));
+      }
+
+      function updateDifficulty(delta) {
+        state.elapsed += delta;
+        const difficultyLevel = Math.floor(state.score / 40) + Math.floor(state.elapsed / 10);
+        state.speed = 2.2 + difficultyLevel * 0.35;
+        state.spawnInterval = Math.max(0.35, 0.9 - difficultyLevel * 0.05);
+      }
+
+      let lastTime = 0;
+      function gameLoop(timestamp) {
+        const delta = (timestamp - lastTime) / 1000 || 0;
+        lastTime = timestamp;
+
+        drawBackground();
+
+        if (state.running) {
+          updateDifficulty(delta);
+          state.spawnTimer += delta;
+          if (state.spawnTimer >= state.spawnInterval) {
+            state.spawnTimer = 0;
+            spawnItem();
+          }
+
+          updateItems();
+          checkCollisions();
+
+          if (state.lives <= 0) {
+            endGame();
+          }
+        }
+
+        drawItems();
+        drawBasket();
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      canvas.addEventListener("mousemove", (event) => {
+        if (!state.running) return;
+        setBasketPosition(event.clientX);
+      });
+
+      canvas.addEventListener("touchmove", (event) => {
+        event.preventDefault();
+        if (!state.running) return;
+        const touch = event.changedTouches[0];
+        setBasketPosition(touch.clientX);
+      }, { passive: false });
+
+      canvas.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        if (!state.running) return;
+        const touch = event.changedTouches[0];
+        setBasketPosition(touch.clientX);
+      }, { passive: false });
+
+      overlay.addEventListener("click", () => resetGame());
+      overlay.addEventListener("touchstart", (event) => {
+        event.preventDefault();
+        resetGame();
+      }, { passive: false });
+      startButton.addEventListener("click", resetGame);
+
+      gameLoop();
+    </script>
+  </body>
+</html>
