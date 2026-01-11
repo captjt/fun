@@ -81,7 +81,7 @@ type EnemyTemplate = {
 const enemyTemplates: EnemyTemplate[] = [];
 
 const state = {
-  speed: 0.24,
+  speed: 0.2,
   jumpVelocity: 0,
   isGrounded: true,
   isSliding: false,
@@ -416,9 +416,9 @@ function spawnObstacle() {
   }
 
   if (type === "overhead") {
-    obstacleMesh.position.set(12 + Math.random() * 6, 3.1, 0);
+    obstacleMesh.position.set(14 + Math.random() * 6, 3.1, 0);
   } else {
-    obstacleMesh.position.set(12 + Math.random() * 6, 0, 0);
+    obstacleMesh.position.set(14 + Math.random() * 6, 0, 0);
   }
 
   obstacleMesh.userData.baseOffset = obstacleMesh.position.y;
@@ -429,7 +429,7 @@ function spawnObstacle() {
 let spawnTimer = 0;
 
 function resetGame() {
-  state.speed = 0.24;
+  state.speed = 0.2;
   state.jumpVelocity = 0;
   state.isGrounded = true;
   state.isSliding = false;
@@ -548,7 +548,7 @@ function updatePlayer(delta: number) {
 function updateObstacles(delta: number) {
   if (!state.running) return;
   spawnTimer += delta;
-  if (spawnTimer > 1.4) {
+  if (spawnTimer > 1.8) {
     spawnTimer = 0;
     spawnObstacle();
   }
@@ -594,7 +594,7 @@ function updateObstacles(delta: number) {
     }
   }
 
-  state.speed = Math.min(0.36, state.speed + delta * 0.005);
+  state.speed = Math.min(0.28, state.speed + delta * 0.003);
 }
 
 const clock = new THREE.Clock();
@@ -640,9 +640,17 @@ window.addEventListener("keyup", (event) => {
 
 let touchStartY: number | null = null;
 let touchStartX: number | null = null;
+let didSwipe = false;
 
 function handleSwipeEnd(clientX: number, clientY: number) {
   if (touchStartY === null || touchStartX === null) return;
+  if (didSwipe) {
+    didSwipe = false;
+    touchStartY = null;
+    touchStartX = null;
+    return;
+  }
+
   const deltaY = clientY - touchStartY;
   const deltaX = clientX - touchStartX;
   const absY = Math.abs(deltaY);
@@ -652,7 +660,6 @@ function handleSwipeEnd(clientX: number, clientY: number) {
     jump();
   } else if (absY > absX && deltaY > 20) {
     slide();
-    stopSlide();
   } else if (absY > absX && deltaY < -20) {
     jump();
   }
@@ -690,6 +697,26 @@ canvas.addEventListener(
     const touch = event.changedTouches[0];
     touchStartY = touch.clientY;
     touchStartX = touch.clientX;
+    didSwipe = false;
+  },
+  { passive: false },
+);
+
+canvas.addEventListener(
+  "touchmove",
+  (event) => {
+    event.preventDefault();
+    if (touchStartY === null || touchStartX === null || didSwipe) return;
+    const touch = event.changedTouches[0];
+    const deltaY = touch.clientY - touchStartY;
+    const deltaX = touch.clientX - touchStartX;
+    const absY = Math.abs(deltaY);
+    const absX = Math.abs(deltaX);
+
+    if (absY > absX && deltaY > 25) {
+      slide();
+      didSwipe = true;
+    }
   },
   { passive: false },
 );
@@ -709,6 +736,7 @@ canvas.addEventListener(
   () => {
     touchStartY = null;
     touchStartX = null;
+    didSwipe = false;
     stopSlide();
   },
   { passive: false },
