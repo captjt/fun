@@ -110,7 +110,7 @@ const collider = {
 const loader = new GLTFLoader();
 
 function assetUrl(path: string) {
-  return new URL(`./assets/${path}`, window.location.href).toString();
+  return new URL(`./${path}`, window.location.href).toString();
 }
 
 type EnvironmentTemplate = {
