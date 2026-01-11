@@ -72,6 +72,15 @@ export const games: Game[] = [
     path: "/games/snowball-toss/index.html",
     controls: "Tap the targets quickly to score points.",
   },
+  {
+    id: "minesweeper",
+    name: "Minesweeper Mini",
+    description: "Flag the mines and clear the safe tiles.",
+    emoji: "💣",
+    tags: ["puzzle", "logic", "classic"],
+    path: "/games/minesweeper/index.html",
+    controls: "Tap to reveal, long-press to flag.",
+  },
 ];
 
 export const tagOptions = Array.from(

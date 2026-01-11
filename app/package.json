@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run build:games && tsc -b && vite build",
+    "build:games": "npm --prefix ./games/color-match-pop install && npm --prefix ./games/color-match-pop run build && npm --prefix ./games/minesweeper install && npm --prefix ./games/minesweeper run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

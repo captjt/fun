@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Color Match Pop</title>
+    <title>Minesweeper Mini</title>
     <style>
       html,
       body {
@@ -11,7 +11,7 @@
         padding: 0;
         width: 100%;
         height: 100%;
-        background: #fde68a;
+        background: #0f172a;
       }
 
       body {
@@ -23,17 +23,19 @@
 
       #game {
         width: min(720px, 96vw);
-        height: min(1280px, 96vh);
+        max-height: 96vh;
+        aspect-ratio: 9 / 16;
+        height: auto;
         border-radius: 24px;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.5);
         overflow: hidden;
-        background: #fff7ed;
+        background: #f8fafc;
         touch-action: none;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-DdJEYvPs.js"></script>
   </head>
   <body>
     <canvas id="game"></canvas>
+    <script type="module" src="/main.ts"></script>
   </body>
 </html>

@@ -16,11 +16,31 @@ npm install
 npm run dev
 ```
 
+## Building for Deploy
+
+```bash
+cd app
+npm install
+npm run build
+```
+
+This build runs each kaplay game build (from `app/games/*`) and then builds the main React site so everything is packaged into the same static output.
+
 ## Adding a New Game
+
+### Classic HTML Game
 
 1. Create a new folder under `app/public/games/<game-id>/` with an `index.html` entry point.
 2. Add a new entry to `app/src/data/games.ts` with the name, emoji, tags, and path.
 3. Use tags that already exist where possible (new tags are welcome too).
+
+### Kaplay Game
+
+1. Duplicate a kaplay game folder under `app/games/<game-id>/` (for example `app/games/color-match-pop/`).
+2. Update the game code in `app/games/<game-id>/src/main.ts` and the title in `app/games/<game-id>/src/index.html`.
+3. Ensure `app/games/<game-id>/vite.config.ts` outputs to `app/public/games/<game-id>/`.
+4. Add a new entry to `app/src/data/games.ts` and include controls + tags.
+5. Run `cd app && npm run build` to build the game into the public folder.
 
 ## Contributing
 
