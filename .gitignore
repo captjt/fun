@@ -1,7 +1,7 @@
 .zed
 v0
 app/games/**/node_modules
-app/public/games/color-match-pop/assets
-app/public/games/color-match-pop/index.html
-app/public/games/minesweeper/assets
-app/public/games/minesweeper/index.html
+app/public/games/color-match-pop/*
+app/public/games/minesweeper/*
+app/public/games/gary-world/*
+!app/public/games/**/.gitkeep

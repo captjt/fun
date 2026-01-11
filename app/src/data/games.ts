@@ -81,6 +81,15 @@ export const games: Game[] = [
     path: "/games/minesweeper/index.html",
     controls: "Tap to reveal, long-press to flag.",
   },
+  {
+    id: "gary-world",
+    name: "Gary World",
+    description: "Run, jump, and dodge 3D obstacles.",
+    emoji: "🌄",
+    tags: ["runner", "3d", "action"],
+    path: "/games/gary-world/index.html",
+    controls: "Press Space or tap to jump.",
+  },
 ];
 
 export const tagOptions = Array.from(
