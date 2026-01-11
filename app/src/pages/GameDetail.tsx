@@ -56,7 +56,7 @@ export function GameDetail() {
           <iframe
             title={game.name}
             src={game.path}
-            className="h-[65vh] w-full bg-black sm:h-[72vh] lg:h-[78vh]"
+            className="h-[85vh] w-full bg-black sm:h-[76vh] lg:h-[78vh]"
             loading="lazy"
           />
         </Card>

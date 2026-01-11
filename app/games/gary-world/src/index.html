@@ -31,6 +31,16 @@
         overflow: hidden;
         background: #0b1224;
         display: block;
+        touch-action: none;
+      }
+
+      @media (orientation: portrait) {
+        #game {
+          width: min(540px, 96vw);
+          height: min(960px, 96vh);
+          max-height: 96vh;
+          aspect-ratio: 9 / 16;
+        }
       }
     </style>
   </head>

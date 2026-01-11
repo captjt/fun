@@ -641,21 +641,10 @@ window.addEventListener("keyup", (event) => {
 let touchStartY: number | null = null;
 let touchStartX: number | null = null;
 
-canvas.addEventListener("pointerdown", (event) => {
-  if (event.pointerType === "touch") {
-    touchStartY = event.clientY;
-    touchStartX = event.clientX;
-    return;
-  }
-  jump();
-});
-
-canvas.addEventListener("pointerup", (event) => {
-  if (event.pointerType !== "touch" || touchStartY === null || touchStartX === null) {
-    return;
-  }
-  const deltaY = event.clientY - touchStartY;
-  const deltaX = event.clientX - touchStartX;
+function handleSwipeEnd(clientX: number, clientY: number) {
+  if (touchStartY === null || touchStartX === null) return;
+  const deltaY = clientY - touchStartY;
+  const deltaX = clientX - touchStartX;
   const absY = Math.abs(deltaY);
   const absX = Math.abs(deltaX);
 
@@ -670,6 +659,22 @@ canvas.addEventListener("pointerup", (event) => {
 
   touchStartY = null;
   touchStartX = null;
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "touch") {
+    touchStartY = event.clientY;
+    touchStartX = event.clientX;
+    return;
+  }
+  jump();
+});
+
+canvas.addEventListener("pointerup", (event) => {
+  if (event.pointerType !== "touch") {
+    return;
+  }
+  handleSwipeEnd(event.clientX, event.clientY);
 });
 
 canvas.addEventListener("pointercancel", () => {
@@ -677,6 +682,37 @@ canvas.addEventListener("pointercancel", () => {
   touchStartX = null;
   stopSlide();
 });
+
+canvas.addEventListener(
+  "touchstart",
+  (event) => {
+    event.preventDefault();
+    const touch = event.changedTouches[0];
+    touchStartY = touch.clientY;
+    touchStartX = touch.clientX;
+  },
+  { passive: false },
+);
+
+canvas.addEventListener(
+  "touchend",
+  (event) => {
+    event.preventDefault();
+    const touch = event.changedTouches[0];
+    handleSwipeEnd(touch.clientX, touch.clientY);
+  },
+  { passive: false },
+);
+
+canvas.addEventListener(
+  "touchcancel",
+  () => {
+    touchStartY = null;
+    touchStartX = null;
+    stopSlide();
+  },
+  { passive: false },
+);
 
 loadPlayer();
 loadEnemyAssets();
